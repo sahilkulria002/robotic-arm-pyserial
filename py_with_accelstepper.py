@@ -1,5 +1,7 @@
 import serial
 import time
+import two_D_UI
+
 
 # Replace 'COM3' with your Arduino's serial port (check in Arduino IDE under Tools > Port)
 arduino = serial.Serial('COM5', 9600, timeout=1)
@@ -16,13 +18,21 @@ def control_led(state):
     elif state == "off":
         send_to_arduino("off")
 
+
+def send_commands_to_arduino(commands):
+    command_str = ";".join([f"A{cmd[0]},B{cmd[1]},C{cmd[2]}" for cmd in commands])
+    print(command_str)
+    arduino.write((command_str + '\n').encode())  # Send command to Arduino
+    time.sleep(0.1)  # Optional delay after sending commands
+
 # commands = [
 #     [50, 100, -25],   # Move motor A 50 steps, motor B 100 steps, motor C -25 steps
     # [30, 50, 0],      # Move motor A 30 steps, motor B 50 steps, motor C 0 steps
     # [0, -75, 20]      # Move motor A 0 steps, motor B -75 steps, motor C 20 steps
 # ]
 
-
+# 10 20 0
+# -10 -20 0
 
 try:
 
@@ -39,63 +49,33 @@ try:
             print("Exiting...")
             break
         else:
-            try:
-                # user_input = input("Enter three integers (steps for A, B, C) separated by spaces, or 'q' to quit: ")
-                # if user_input.lower() == 'q':
-                #     break  # Exit the loop if the user wants to quit
-                
-                # Split the input into a list of strings, convert them to integers
-                steps = list(map(int, user_input.split()))
-                
-                if len(steps) != 3:
-                    print("Please enter exactly three integers.")
-                    continue
-                
-                # Append the steps to the commands list
-                commands = []
-                commands.append(steps)
-                print(f"Command added: {steps}")
             
-            except ValueError:
-                print("Invalid input. Please enter three integers separated by spaces.")
+            while True :
+                user_input = input("give e to stop or 3 ints, one for each motor : ")
+                if user_input == "e" :
+                    break
+                else :
+                    commands = []
+                    step_list = two_D_UI.run_ui()
+                    for steps in step_list :
+                        commands.append([-steps[1], 0, steps[0]])
+                    send_commands_to_arduino(commands)
+                # user_input = input("give e to stop or 3 ints, one for each motor : ")
+                # if user_input == "e" :
+                #     print(commands)
+                #     send_commands_to_arduino(commands)
+                #     break
+                # else : 
+                #     steps = list(map(int, user_input.split()))
+                    
+                #     if len(steps) != 3:
+                #         print("Please enter exactly three integers.")
+                #         continue
+                    
+                #     # Append the steps to the commands list
+                #     commands.append(steps)
+                #     print(f"Command added: {steps}")
 
-            # commands = [[int(x) for x in input().split(",")]]
-            print(commands)
-            for command in commands:
-                # Construct command string
-                command_str = f"A{command[0]},B{command[1]},C{command[2]}"
-                print(f"Sending command: {command_str}")
-                send_to_arduino(command_str)  # Send command to Arduino
-                time.sleep(1)  # Wait for a second before sending the next command
-
-
-# try:
-#     while True:
-#         user_input = input("Enter 'y' to turn the LED on, 'n' to turn it off, or anything to quit: ").lower()
-
-#         if user_input == "y":
-#             control_led("on")
-#             print("LED turned on.")
-#         elif user_input == "n":
-#             control_led("off")
-#             print("LED turned off.")
-#         elif user_input == "q" :
-#             print("Exiting...")
-#             break
-#         else:
-#             # Check if the input matches the motor command format (e.g., A50, B100, etc.)
-#             if len(user_input) > 1 and user_input[0] in ['a', 'b', 'c']:
-#                 motor = user_input[0].upper()  # Motor identifier (A, B, or C)
-#                 try:
-#                     steps = int(user_input[1:])  # Extract the number of steps
-#                     command = f"{motor}{steps}"  # Command format: A50, B100, etc.
-#                     print(f"sendin command : {command}")
-#                     send_to_arduino(command)  # Send motor command to Arduino
-#                     print(f"Motor {motor} moved {steps} steps.")
-#                 except ValueError:
-#                     print("Invalid input. Please enter a valid motor command (e.g., A50, B100, etc.).")
-#             else:
-#                 print("Invalid input. Please enter 'on', 'off', or a valid motor command.")
 
 except KeyboardInterrupt:
     print("\nProgram interrupted.")

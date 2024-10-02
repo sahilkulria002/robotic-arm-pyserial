@@ -1,8 +1,5 @@
-
 import pygame
 import math
-
-
 
 # Function to calculate the joint positions using angles
 def get_joint_positions(theta1, theta2, origin, L1, L2):
@@ -31,7 +28,7 @@ def angle_to_step(angle1, angle2, steps_per_rev_1=400, steps_per_rev_2=200):
     print(f"steps1 is {steps1}\nsteps2 is {steps2}")
     return steps1, steps2
 
-# The main UI function that returns angles when "Go" is pressed
+# The main UI function that returns angles when "Move" is pressed
 def run_ui():
     # Arm lengths
     L1 = 150  # Length of the first segment (stick 1)
@@ -52,10 +49,13 @@ def run_ui():
     # Origin point (the shoulder of the arm)
     origin = (WIDTH // 2, HEIGHT // 2)
 
-    # Go Button setup
+    # Button setup
     BUTTON_WIDTH, BUTTON_HEIGHT = 100, 50
-    button_color = GREEN
-    button_rect = pygame.Rect(WIDTH - BUTTON_WIDTH - 10, HEIGHT - BUTTON_HEIGHT - 10, BUTTON_WIDTH, BUTTON_HEIGHT)
+    go_button_color = GREEN
+    go_button_rect = pygame.Rect(WIDTH - BUTTON_WIDTH - 10, HEIGHT - BUTTON_HEIGHT - 10, BUTTON_WIDTH, BUTTON_HEIGHT)
+
+    move_button_color = RED
+    move_button_rect = pygame.Rect(WIDTH - BUTTON_WIDTH - 10, HEIGHT - (BUTTON_HEIGHT * 2) - 20, BUTTON_WIDTH, BUTTON_HEIGHT)
 
     running = True
     arm_angles = [0, 0]
@@ -63,6 +63,7 @@ def run_ui():
     final_angles = None
     prev_angle1 = 0
     prev_angle2 = 0
+    steps_list = []
 
     while running:
         screen.fill(WHITE)
@@ -74,35 +75,48 @@ def run_ui():
             # Check if the mouse button is pressed
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    if button_rect.collidepoint(event.pos):
-                        if final_angles:
-                            # Calculate angle changes
-                            final_angle1 = int(math.degrees(final_angles[0]))
-                            final_angle2 = int(math.degrees(final_angles[1]))
+                    move_arm = True  # Start moving the arm
+                    # Get initial mouse position for inverse kinematics
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    rel_x = mouse_x - origin[0]
+                    rel_y = mouse_y - origin[1]
+                    theta1, theta2 = inverse_kinematics(rel_x, rel_y, L1, L2)
 
-                            angle1_change = final_angle1 - prev_angle1
-                            angle2_change = final_angle2 - prev_angle2
+                    if theta1 is not None and theta2 is not None:
+                        arm_angles = [theta1, theta2]
+                        final_angles = [theta1, theta2]
 
-                            # Convert to steps and return the steps
-                            steps1, steps2 = angle_to_step(angle1_change, angle2_change)
-
-                            # Update previous angles
-                            prev_angle1 = final_angle1
-                            prev_angle2 = final_angle2
-                            pygame.quit()
-                            return steps1, steps2  # Return steps when Go button is pressed
-                        
-                    else:
-                        move_arm = True  # Start moving the arm if clicked outside the Go button
-
+            # Check if mouse button is released
             if event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:
-                    move_arm = False
+                    move_arm = False  # Stop moving the arm
 
-        # Get mouse position (where we want the arm to move)
-        mouse_x, mouse_y = pygame.mouse.get_pos()
+            # Process button presses
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if go_button_rect.collidepoint(event.pos):
+                    if final_angles:
+                        # Calculate angle changes
+                        final_angle1 = int(math.degrees(final_angles[0]))
+                        final_angle2 = int(math.degrees(final_angles[1]))
 
+                        angle1_change = final_angle1 - prev_angle1
+                        angle2_change = final_angle2 - prev_angle2
+
+                        # Convert to steps and append to the list
+                        steps1, steps2 = angle_to_step(angle1_change, angle2_change)
+                        steps_list.append([steps1, steps2])  # Append to the list
+
+                        # Update previous angles
+                        prev_angle1 = final_angle1
+                        prev_angle2 = final_angle2
+
+                elif move_button_rect.collidepoint(event.pos):
+                    pygame.quit()
+                    return steps_list  # Return the list of steps when Move button is pressed
+
+        # If the mouse is pressed, update arm angles
         if move_arm:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
             rel_x = mouse_x - origin[0]
             rel_y = mouse_y - origin[1]
             theta1, theta2 = inverse_kinematics(rel_x, rel_y, L1, L2)
@@ -120,10 +134,15 @@ def run_ui():
         pygame.draw.circle(screen, RED, tip_pos, 10)
 
         # Draw the Go button
-        pygame.draw.rect(screen, button_color, button_rect)
+        pygame.draw.rect(screen, go_button_color, go_button_rect)
         font = pygame.font.Font(None, 36)
-        button_text = font.render("Go", True, BLACK)
-        screen.blit(button_text, (button_rect.x + 20, button_rect.y + 10))
+        go_button_text = font.render("Go", True, BLACK)
+        screen.blit(go_button_text, (go_button_rect.x + 20, go_button_rect.y + 10))
+
+        # Draw the Move button
+        pygame.draw.rect(screen, move_button_color, move_button_rect)
+        move_button_text = font.render("Move", True, BLACK)
+        screen.blit(move_button_text, (move_button_rect.x + 10, move_button_rect.y + 10))
 
         # Display angles
         angles_text = font.render(f'Angle 1: {math.degrees(arm_angles[0]):.2f}°  Angle 2: {math.degrees(arm_angles[1]):.2f}°', True, BLACK)
@@ -133,13 +152,11 @@ def run_ui():
 
     pygame.quit()
 
-
-
-
 def main():
     while True:
-        # Call the UI function which returns steps when "Go" is pressed
-        steps1, steps2 = run_ui()
+        # Call the UI function which returns steps when "Move" is pressed
+        steps_list = run_ui()
+        print("Steps list:", steps_list)  # You can use this list as needed
 
 if __name__ == '__main__':
     main()
