@@ -1,144 +1,127 @@
-import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget
-import pyvista as pv
-from pyvistaqt import QtInteractor
 import numpy as np
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.graph_objs as go
 
+# Arm parameters (Lengths of each section)
+L1 = 10  # Length of first segment (shoulder to elbow)
+L2 = 10  # Length of second segment (elbow to wrist)
 
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+# Inverse kinematics function to calculate the angles
+def inverse_kinematics(x, y, z):
+    r = np.sqrt(x**2 + y**2)
+    d = np.sqrt(r**2 + z**2)
+    
+    # Check if the point is reachable
+    if d > (L1 + L2):
+        # If out of reach, scale down to maximum reach
+        scale = (L1 + L2) / d
+        x *= scale
+        y *= scale
+        z *= scale
+        d = L1 + L2
+    
+    # Calculate inverse kinematics for the two-segment arm
+    theta1 = np.arctan2(y, x)  # Base rotation (around Z-axis)
+    
+    # Using cosine law to calculate the angle at the elbow
+    cos_angle = (L1**2 + L2**2 - d**2) / (2 * L1 * L2)
+    theta2 = np.arccos(np.clip(cos_angle, -1, 1))
+    
+    # Calculate the shoulder angle using cosine law
+    alpha = np.arctan2(z, r)
+    cos_angle_shoulder = (L1**2 + d**2 - L2**2) / (2 * L1 * d)
+    shoulder_angle = np.arccos(np.clip(cos_angle_shoulder, -1, 1))
+    
+    theta3 = alpha + shoulder_angle
+    
+    return theta1, theta2, theta3
 
-        self.setWindowTitle("3D Robotic Arm UI")
+# Forward kinematics function to calculate positions based on angles
+def forward_kinematics(theta1, theta2, theta3):
+    # Calculate the position of the elbow
+    elbow_x = L1 * np.cos(theta1) * np.cos(theta3)
+    elbow_y = L1 * np.sin(theta1) * np.cos(theta3)
+    elbow_z = L1 * np.sin(theta3)
+    
+    # Calculate the position of the wrist
+    wrist_x = elbow_x + L2 * np.cos(theta1) * np.cos(theta3 - theta2)
+    wrist_y = elbow_y + L2 * np.sin(theta1) * np.cos(theta3 - theta2)
+    wrist_z = elbow_z + L2 * np.sin(theta3 - theta2)
+    
+    return np.array([elbow_x, elbow_y, elbow_z]), np.array([wrist_x, wrist_y, wrist_z])
 
-        # Layout for the buttons
-        self.store_button = QPushButton("Store")
-        self.move_button = QPushButton("Move")
+# Initial wrist position (start at the maximum reach)
+initial_wrist_position = np.array([L1 + L2, 0, 0])
 
-        self.store_button.clicked.connect(self.store_clicked)
-        self.move_button.clicked.connect(self.move_clicked)
+# Dash app
+app = dash.Dash(__name__)
 
-        # Create a layout and add the buttons
-        button_layout = QVBoxLayout()
-        button_layout.addWidget(self.store_button)
-        button_layout.addWidget(self.move_button)
+app.layout = html.Div([
+    dcc.Graph(id='3d-arm'),
+    html.Div([
+        html.Label('X Coordinate'),
+        dcc.Slider(id='x-slider', min=-20, max=20, step=0.1, value=initial_wrist_position[0]),
+    ], style={'padding': '10px'}),
+    html.Div([
+        html.Label('Y Coordinate'),
+        dcc.Slider(id='y-slider', min=-20, max=20, step=0.1, value=initial_wrist_position[1]),
+    ], style={'padding': '10px'}),
+    html.Div([
+        html.Label('Z Coordinate'),
+        dcc.Slider(id='z-slider', min=-20, max=20, step=0.1, value=initial_wrist_position[2]),
+    ], style={'padding': '10px'}),
+])
 
-        # Set up the main layout
-        self.main_layout = QVBoxLayout()
-
-        # Add button layout to the main layout
-        self.main_layout.addLayout(button_layout)
-
-        # Add the 3D rendering area
-        self.pv_widget = QtInteractor(self)  # Create PyVista interactor for 3D scene
-        self.main_layout.addWidget(self.pv_widget.interactor)
-
-        # Set the central widget for the main window
-        container = QWidget()
-        container.setLayout(self.main_layout)
-        self.setCentralWidget(container)
-
-        # Initialize the 3D scene
-        self.create_3d_scene()
-
-    def create_3d_scene(self):
-        """Set up the 3D scene with a robotic arm and coordinate axes"""
-        plotter = self.pv_widget  # Get the plotter object for rendering
-
-        # Fix the view so it doesn't change while dragging the arm
-        plotter.camera_position = 'xy'  # Set to xy plane view
-
-        # Add x, y, z axes to the scene
-        plotter.add_axes()
-
-        # Arm link lengths
-        self.L1 = 2.0  # Length of the first link
-        self.L2 = 2.0  # Length of the second link
-
-        # Add first link (vertical cylinder)
-        self.cylinder1 = pv.Cylinder(radius=0.05, height=self.L1, center=(0, self.L1 / 2, 0), direction=(0, 1, 0))
-        self.actor1 = plotter.add_mesh(self.cylinder1, color="red", show_edges=True)
-
-        # Add second link (horizontal cylinder attached to the first link)
-        self.cylinder2 = pv.Cylinder(radius=0.05, height=self.L2, center=(self.L2 / 2, self.L1, 0), direction=(1, 0, 0))
-        self.actor2 = plotter.add_mesh(self.cylinder2, color="blue", show_edges=True)
-
-        # Add indicator spheres at the joints and tip
-        self.joint1_sphere = plotter.add_mesh(pv.Sphere(radius=0.1, center=(0, 0, 0)), color="green")  # Base joint
-        self.joint2_sphere = plotter.add_mesh(pv.Sphere(radius=0.1, center=(0, self.L1, 0)), color="green")  # Second joint
-        self.tip_sphere = plotter.add_mesh(pv.Sphere(radius=0.1, center=(self.L2, self.L1, 0)), color="green")  # Tip of the arm
-
-        # Enable point picking for the tip to drag
-        plotter.enable_point_picking(callback=self.drag_callback, left_clicking=True, show_message=False)
-
-        # Render the scene
-        plotter.show()
-
-    def drag_callback(self, point):
-        """Callback function for dragging the tip of the arm"""
-        print(f"Dragged to: {point}")
-
-        # Calculate the new joint angles based on the dragged position
-        angles = self.inverse_kinematics(point[:2])  # Ignore z-axis since we're in 2D
-        if angles:
-            self.update_arm(angles)
-
-    def inverse_kinematics(self, point):
-        """Calculate the joint angles based on the end-effector position (2D IK for 2-link arm)"""
-        x, y = point  # We only care about x, y in this 2D setup
-
-        L1, L2 = self.L1, self.L2  # Link lengths
-
-        # Distance from the origin to the point
-        distance = np.sqrt(x**2 + y**2)
-
-        # Check if the point is reachable
-        if distance > L1 + L2 or distance < abs(L1 - L2):
-            print("Point is out of reach")
-            return None
-
-        # Inverse kinematics calculations
-        cos_theta2 = (x**2 + y**2 - L1**2 - L2**2) / (2 * L1 * L2)
-        sin_theta2 = np.sqrt(1 - cos_theta2**2)
-        theta2 = np.arctan2(sin_theta2, cos_theta2)
-
-        k1 = L1 + L2 * cos_theta2
-        k2 = L2 * sin_theta2
-        theta1 = np.arctan2(y, x) - np.arctan2(k2, k1)
-
-        return theta1, theta2
-
-    def update_arm(self, angles):
-        """Update the arm's position based on the calculated joint angles"""
-        theta1, theta2 = angles
-
-        # Calculate the new positions of the joints
-        x1 = self.L1 * np.cos(theta1)
-        y1 = self.L1 * np.sin(theta1)
-
-        x2 = x1 + self.L2 * np.cos(theta1 + theta2)
-        y2 = y1 + self.L2 * np.sin(theta1 + theta2)
-
-        # Update the positions of the links and spheres
-        self.cylinder1.transform.translate((0, y1 / 2, 0), inplace=True)
-        self.cylinder2.transform.translate((x1 + x2) / 2, y1, 0, inplace=True)
-
-        # Update the spheres (joints)
-        self.joint2_sphere.SetPosition(x1, y1, 0)
-        self.tip_sphere.SetPosition(x2, y2, 0)
-
-        # Redraw the scene
-        self.pv_widget.update()
-
-    def store_clicked(self):
-        print("Store button clicked")
-
-    def move_clicked(self):
-        print("Move button clicked")
-
+# Update the 3D plot based on slider inputs
+@app.callback(
+    Output('3d-arm', 'figure'),
+    [Input('x-slider', 'value'),
+     Input('y-slider', 'value'),
+     Input('z-slider', 'value')]
+)
+def update_graph(x, y, z):
+    # Calculate the angles using inverse kinematics
+    theta1, theta2, theta3 = inverse_kinematics(x, y, z)
+    
+    # Calculate the positions of the elbow and wrist
+    elbow_pos, wrist_pos = forward_kinematics(theta1, theta2, theta3)
+    
+    # Create axis lines
+    axes = [
+        go.Scatter3d(x=[0, 20], y=[0, 0], z=[0, 0], mode='lines', line=dict(color='black', width=3), name='X-axis'),
+        go.Scatter3d(x=[0, 0], y=[0, 20], z=[0, 0], mode='lines', line=dict(color='black', width=3), name='Y-axis'),
+        go.Scatter3d(x=[0, 0], y=[0, 0], z=[0, 20], mode='lines', line=dict(color='black', width=3), name='Z-axis'),
+    ]
+    
+    # Create the arm segments
+    arm_segments = go.Scatter3d(
+        x=[0, elbow_pos[0], wrist_pos[0]],
+        y=[0, elbow_pos[1], wrist_pos[1]],
+        z=[0, elbow_pos[2], wrist_pos[2]],
+        mode='lines+markers',
+        line=dict(color='blue', width=5),
+        marker=dict(size=5, color=['red', 'black', 'green']),
+        name='Arm'
+    )
+    
+    # Combine all elements into the data list
+    data = axes + [arm_segments]
+    
+    # Set the layout for the 3D plot
+    layout = go.Layout(
+        scene=dict(
+            xaxis=dict(range=[-20, 20]),
+            yaxis=dict(range=[-20, 20]),
+            zaxis=dict(range=[-20, 20]),
+            aspectmode='cube'
+        ),
+        margin=dict(l=0, r=0, b=0, t=0)
+    )
+    
+    return go.Figure(data=data, layout=layout)
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()  # Show the main window
-    sys.exit(app.exec_())
+    app.run_server(debug=True)
