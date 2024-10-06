@@ -22,7 +22,7 @@ def inverse_kinematics(x, y, L1, L2):
     return theta1, theta2
 
 # Function to convert angle changes to stepper motor steps
-def angle_to_step(angle1, angle2, steps_per_rev_1=400, steps_per_rev_2=200):
+def angle_to_step(angle1, angle2, steps_per_rev_1=800, steps_per_rev_2=200):
     steps1 = int((angle1 * steps_per_rev_1) / 360)
     steps2 = int((angle2 * steps_per_rev_2) / 360)
     print(f"steps1 is {steps1}\nsteps2 is {steps2}")
