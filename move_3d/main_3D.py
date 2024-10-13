@@ -2,6 +2,7 @@ import serial
 import time
 import keyboard  # Make sure to install this library
 import two_D_UI
+import xy_to_step_3D
 
 # This connects to the pyserial communication in Arduino
 arduino = serial.Serial('COM5', 9600, timeout=1)
@@ -76,14 +77,28 @@ try:
             print("Exiting...")
             break
         else:
-            
+            curve = []
             while user_input != "q" :
-                commands = []
-                step_list = two_D_UI.run_ui()
-                for steps in step_list :
-                    commands.append([-steps[1], 0, steps[0]])
-                send_commands_to_arduino(commands)
-                user_input = input("give e to stop or 3 ints, one for each motor : ")
+                user_input = input("Enter 3 integers separated by spaces (or 'q' to quit): ")
+                if user_input.lower() == 'q':
+                    break                
+                try:
+                    numbers = list(map(int, user_input.split()))                    
+                    if len(numbers) != 3:
+                        print("Please enter exactly 3 integers.")
+                        continue                    
+                    curve.append(numbers)
+                except ValueError:
+                    print("Invalid input. Please enter integers.")
+
+            commands = []
+            # step_list = two_D_UI.run_ui()
+
+            for point in curve :
+                steps = xy_to_step_3D.xyz_to_steps(point[0], point[1], point[2])
+                commands.append([-steps[1], steps[2], steps[0]])
+            send_commands_to_arduino(commands)
+            user_input = input("give e to stop or 3 ints, one for each motor : ")
 
 except KeyboardInterrupt:
     print("\nProgram interrupted.")

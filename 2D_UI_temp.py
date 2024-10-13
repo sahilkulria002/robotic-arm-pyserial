@@ -86,7 +86,7 @@ def run_ui():
 
     pygame.quit()
 
-def angle_to_step(angle1, angle2, steps_per_rev_1=400, steps_per_rev_2=200):
+def angle_to_step(angle1, angle2, steps_per_rev_1=400, steps_per_rev_2=1600):
     steps1 = int((angle1 * steps_per_rev_1) / 360)
     steps2 = int((angle2 * steps_per_rev_2) / 360)
     print(f"Steps1: {steps1}, Steps2: {steps2}")
