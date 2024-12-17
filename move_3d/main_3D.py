@@ -1,7 +1,6 @@
 import serial
 import time
 import keyboard  # Make sure to install this library
-import two_D_UI
 import xy_to_step_3D
 
 # This connects to the pyserial communication in Arduino
@@ -32,27 +31,27 @@ commands = []
 def handle_keypress(event):
     global commands  # Use the global commands variable
     if event.name == 'up':
-        commands = [[10, 0, 0]]  # Set command for up arrow
+        commands = [[100, 0, 0]]  # Set command for up arrow
         print("--- x moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'down':
-        commands = [[-10, 0, 0]]  # Set command for down arrow
+        commands = [[-100, 0, 0]]  # Set command for down arrow
         print("--- x moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'left':
-        commands = [[0, 10, 0]]  # Set command for left arrow
+        commands = [[0, 100, 0]]  # Set command for left arrow
         print("---  y moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'right':
-        commands = [[0, -10, 0]]  # Set command for right arrow
+        commands = [[0, -100, 0]]  # Set command for right arrow
         print("---  y moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'comma':  # Represents the '<' key
-        commands = [[0, 0, 10]]  # Set command for '<' key
+        commands = [[0, 0, 100]]  # Set command for '<' key
         print("---  z moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'period':  # Represents the '>' key
-        commands = [[0, 0, -10]]  # Set command for '>' key
+        commands = [[0, 0, -100]]  # Set command for '>' key
         print("---  z moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to A,,,,,,...........rduino
 
@@ -73,6 +72,10 @@ try:
         elif user_input == "n":
             control_led("off")
             print("LED turned off.")
+        # elif user_input == "s" :
+        #     curve = [[-18,12,0],[-18, 7, 0], [-15, 7, 0]]
+        #     commands = xy_to_step_3D.xyz_to_steps(curve)
+        #     send_commands_to_arduino(commands)
         elif user_input == "q" :
             print("Exiting...")
             break
@@ -94,11 +97,11 @@ try:
             commands = []
             # step_list = two_D_UI.run_ui()
 
-            for point in curve :
-                steps = xy_to_step_3D.xyz_to_steps(point[0], point[1], point[2])
-                commands.append([-steps[1], steps[2], steps[0]])
+            # for point in curve :
+            commands = xy_to_step_3D.xyz_to_steps(curve)
+                # append in this format in commands : [elbow motor, shoulder motor 1, shoulder motor2], shoulder motor 2 and eblow are in one plane
+                # commands.append([-steps[2], steps[0], steps[1]])
             send_commands_to_arduino(commands)
-            user_input = input("give e to stop or 3 ints, one for each motor : ")
 
 except KeyboardInterrupt:
     print("\nProgram interrupted.")

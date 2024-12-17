@@ -31,34 +31,34 @@ commands = []
 def handle_keypress(event):
     global commands  # Use the global commands variable
     if event.name == 'up':
-        commands = [[10, 0, 0]]  # Set command for up arrow
+        commands = [[50, 0, 0]]  # Set command for up arrow
         print("--- x moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'down':
-        commands = [[-10, 0, 0]]  # Set command for down arrow
+        commands = [[-50, 0, 0]]  # Set command for down arrow
         print("--- x moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'left':
-        commands = [[0, 10, 0]]  # Set command for left arrow
+        commands = [[0, 50, 0]]  # Set command for left arrow
         print("---  y moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'right':
-        commands = [[0, -10, 0]]  # Set command for right arrow
+        commands = [[0, -50, 0]]  # Set command for right arrow
         print("---  y moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'comma':  # Represents the '<' key
-        commands = [[0, 0, 10]]  # Set command for '<' key
+        commands = [[0, 0, 50]]  # Set command for '<' key
         print("---  z moving forward")
         send_commands_to_arduino(commands)  # Call function to send command to Arduino
     elif event.name == 'period':  # Represents the '>' key
-        commands = [[0, 0, -10]]  # Set command for '>' key
+        commands = [[0, 0, -50]]  # Set command for '>' key
         print("---  z moving backward")
         send_commands_to_arduino(commands)  # Call function to send command to A,,,,,,...........rduino
 
 # Listen for key presses
 keyboard.on_press(handle_keypress)
-keyboard.add_hotkey('<', lambda: [print("z moving forward"), send_commands_to_arduino([[0, 0, 10]])])
-keyboard.add_hotkey('>', lambda: [print("z moving backward"), send_commands_to_arduino([[0, 0, -10]])])
+keyboard.add_hotkey('<', lambda: [print("z moving forward"), send_commands_to_arduino([[0, 0, 100]])])
+keyboard.add_hotkey('>', lambda: [print("z moving backward"), send_commands_to_arduino([[0, 0, -100]])])
 
 
 try:
@@ -83,7 +83,7 @@ try:
                 for steps in step_list :
                     commands.append([-steps[1], 0, steps[0]])
                 send_commands_to_arduino(commands)
-                user_input = input("give e to stop or 3 ints, one for each motor : ")
+                user_input = input("give q to stop or 3 ints, one for each motor : ")
 
 except KeyboardInterrupt:
     print("\nProgram interrupted.")

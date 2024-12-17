@@ -22,7 +22,7 @@ def inverse_kinematics(x, y, L1, L2):
     return theta1, theta2
 
 # Function to convert angle changes to stepper motor steps
-def angle_to_step(angle1, angle2, steps_per_rev_1=800, steps_per_rev_2=1600):
+def angle_to_step(angle1, angle2, steps_per_rev_1=2200, steps_per_rev_2=5000):
     steps1 = int((angle1 * steps_per_rev_1) / 360)
     steps2 = int((angle2 * steps_per_rev_2) / 360)
     print(f"steps1 is {steps1}\nsteps2 is {steps2}")
@@ -31,8 +31,8 @@ def angle_to_step(angle1, angle2, steps_per_rev_1=800, steps_per_rev_2=1600):
 # The main UI function that returns angles when "Move" is pressed
 def run_ui():
     # Arm lengths
-    L1 = 150  # Length of the first segment (stick 1)
-    L2 = 150  # Length of the second segment (stick 2)
+    L1 = 180  # Length of the first segment (stick 1)
+    L2 = 120  # Length of the second segment (stick 2)
 
     # Colors
     WHITE = (255, 255, 255)
@@ -136,7 +136,7 @@ def run_ui():
         # Draw the Go button
         pygame.draw.rect(screen, go_button_color, go_button_rect)
         font = pygame.font.Font(None, 36)
-        go_button_text = font.render("Go", True, BLACK)
+        go_button_text = font.render("Store", True, BLACK)
         screen.blit(go_button_text, (go_button_rect.x + 20, go_button_rect.y + 10))
 
         # Draw the Move button
